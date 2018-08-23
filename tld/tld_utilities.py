@@ -66,11 +66,10 @@ def bb_center(bb):
     if len(bb) == 0:
         center = None
         return center
-    center = 0.5 * np.array([bb[0], bb[2], bb[1], bb[3]])
+    center = 0.5 * np.array([bb[0] + bb[2], bb[1] + bb[3]])
     return center
 
 
-#    todo refactor down ward from here
 def bb_points(BB, num_m, num_n, margin):
     """
     Generates numM x numN points on BBox.
@@ -84,28 +83,23 @@ def bb_points(BB, num_m, num_n, margin):
     bb[0:2] = BB[0:2] + margin
     bb[2:4] = BB[2:4] - margin
 
+    num_stepW = num_n
+    num_stepH = num_m
+
     if num_m == 1 and num_n == 1:
         pt = bb_center(bb)
         return pt
 
-    if num_n == 1 and num_n > 1:
+    if num_m == 1 and num_n > 1:
         c = bb_center(bb)
-        stepW = (bb[2] - bb[1]) / (num_n - 1)
-        num_stepW = (bb[2] - bb[0]) / stepW + 1
-        pt = np.array(np.meshgrid(np.linspace(bb[0], bb[2], num_stepW), np.array([c[2]]))).T.reshape(-1, 2).T
+        pt = np.array(np.meshgrid(np.linspace(bb[0], bb[2], num_stepW), np.array([c[1]]))).T.reshape(-1, 2).T
         return pt
 
     if num_m > 1 and num_n == 1:
         c = bb_center(bb)
-        stepH = (bb[3] - bb[1]) / (num_m - 1)
-        num_stepH = (bb[3] - bb[1]) / stepH + 1
         pt = np.array(np.meshgrid(np.array([c[0]]), np.linspace(bb[1], bb[3], num_stepH))).T.reshape(-1, 2).T
         return pt
 
-    stepW = (bb[2] - bb[0]) / (num_n - 1)
-    stepH = (bb[3] - bb[1]) / (num_m - 1)
-    num_stepW = (bb[2] - bb[0]) / stepW + 1
-    num_stepH = (bb[3] - bb[1]) / stepH + 1
     pt = np.array(np.meshgrid(np.linspace(bb[0], bb[2], num_stepW), np.linspace(bb[1], bb[3], num_stepH))).T.reshape(-1,
                                                                                                                      2).T
 
@@ -116,7 +110,7 @@ def bb_points(BB, num_m, num_n, margin):
     return pt
 
 
-# todo refactor this
+# todo looks fine
 def bb_predict(BB0, pt0, pt1):
     """
 
@@ -144,7 +138,10 @@ def bb_predict(BB0, pt0, pt1):
 # todo refactor this
 def bb_rescale_relative(BB, s):
     """
-        TLD
+
+    :param BB:
+    :param s:
+    :return:
     """
     if len(BB) == 0:
         return None
@@ -162,6 +159,12 @@ def bb_rescale_relative(BB, s):
 
 # todo refactor this
 def bb_shift_relative(bb, shift):
+    """
+
+    :param bb:
+    :param shift:
+    :return:
+    """
     if bb.size == 0:
         return
     bb_shift = np.zeros(4, dtype=np.float64)
@@ -173,7 +176,21 @@ def bb_shift_relative(bb, shift):
     return bb
 
 
-# todo refactor this
+def bb_shift_absolute(bb, shift):
+    """
+
+    :param bb:
+    :param shift:
+    :return:
+    """
+    bb[0] = bb[0] + shift[0]
+    bb[1] = bb[1] + shift[1]
+    bb[2] = bb[2] + shift[0]
+    bb[3] = bb[3] + shift[1]
+    return bb
+
+
+# todo implement if needed
 def bb_union(BB1, BB2):
     """
 
