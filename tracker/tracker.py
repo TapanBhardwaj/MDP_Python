@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
+from mdp_function.mdp_utilities import *
+from lk.lk_utilities import *
 from svmutil import *
 import cv2
-
-
 
 
 def read_dres_image(args, seq_set, seq_name, logger):
@@ -47,6 +47,7 @@ def read_dres_image(args, seq_set, seq_name, logger):
 
         return dres_image
 
+
 def dataframetonumpy(df):
     """
         Convert the input label files(det, gt) to numpy from pandas dataframe.
@@ -57,28 +58,49 @@ def dataframetonumpy(df):
         # print(numpy_data[col].dtype)
     return numpy_data
 
+
 def read_mot2dres(filename):
     data = pd.read_csv(filename, names=['fr', 'id', 'x', 'y', 'w', 'h', 'r', 'd1', 'd2', 'd3'])
     data.drop(columns=['d1', 'd2', 'd3'], inplace=True)
-    data= dataframetonumpy(data)
+    data = dataframetonumpy(data)
     for key in ['x', 'y', 'w', 'h', 'r']:
         data[key] = data[key].astype(np.dtype('d'))
     return data
 
 
+def generate_association_index(tracker, frame_id, dres_det):
+    """Get the index of imabounding box from detection to associate with current track.
 
+    Arguments:
+        tracker {Tracker} -- current Tracker object
+        frame_id {int} -- current frame id
+        dres_det -- detection images
 
+    Returns:
+        [type] -- [description]
+    """
 
-def mdp_feature_active(tracker, dres):
-    num = len(dres['fr'])
-    f = np.zeros(shape=(num, tracker.fnum_active))
-    f[:, 0] = dres['x'] / tracker.image_width
-    f[:, 1] = dres['y'] / tracker.image_height
-    f[:, 2] = dres['w'] / tracker.max_width
-    f[:, 3] = dres['h'] / tracker.max_height
-    f[:, 4] = dres['r'] / tracker.max_score
-    f[:, 5] = 1
-    return f
+    ctrack = apply_motion_prediction(frame_id, tracker)
+
+    num_det = len(dres_det['fr'])
+    # todo doubt in .T from last
+    cdets = np.array([dres_det['x'] + dres_det['w'] / 2, dres_det['y'] + dres_det['h'] / 2]).T
+
+    # compute distances and aspect ratios
+    distances = np.zeros(shape=(num_det, 1))
+    ratios = np.zeros(shape=(num_det, 1))
+    for i in range(num_det):
+        distances[i] = np.linalg.norm(cdets[i, :] - ctrack) / tracker.dres['w'][-1]
+
+        ratio = tracker.dres['h'][-1] / dres_det['h'][i]
+        ratios[i] = min(ratio, 1 / ratio)
+    # todo remove [0] from last in next line
+    index_det = np.where(np.logical_and(distances < tracker.threshold_dis, ratios > tracker.threshold_ratio))
+    dres_det['ratios'] = ratios
+    dres_det['distances'] = distances
+
+    return dres_det, index_det, ctrack
+
 
 class Tracker():
     def __init__(self, I, dres_det, labels, args, logger):
@@ -133,8 +155,3 @@ class Tracker():
 
         # To display result
         self.is_show = args.is_show
-
-
-def mdp_initialize(I, dres_det, labels, args, logger):
-    tracker = Tracker(I, dres_det, labels, args, logger)
-    return tracker
