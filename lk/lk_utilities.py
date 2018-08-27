@@ -83,6 +83,41 @@ def sub(s, I):
     return subset
 
 
+def im_crop(img, bb):
+    '''
+    ****************************************************
+    directly taken from nidhin's code
+    ****************************************************
+    :param img:
+    :param bb:
+    :return:
+    '''
+    w = int(bb_width(bb))
+    h = int(bb_height(bb))
+    I = np.zeros(shape=(h, w), dtype=np.uint8)
+
+    x1 = int(max([1, bb[0]]))
+    y1 = int(max([1, bb[1]]))
+    x2 = int(min([img.shape[1], bb[2]]))
+    y2 = int(min(img.shape[0], bb[3]))
+    patch = img[y1 - 1:y2, x1 - 1:x2]
+
+    x1 = int(x1 - bb[0])
+    y1 = int(y1 - bb[1])
+    x2 = int(x2 - bb[0] + 1)
+    y2 = int(y2 - bb[1] + 1)
+
+    # if patch.shape[0] != 0 and patch.shape[1] != 0:
+    # todo not given in matlab code
+    try:
+        I[y1:y2, x1:x2] = patch
+    except ValueError:
+        print("Error in im_crop")
+        return np.zeros((h, w), dtype=np.uint8)
+
+    return I
+
+
 def apply_motion_prediction(fr_current, tracker):
     """
         apply motion models to predict the next locations of the targets
@@ -391,14 +426,16 @@ def lk_initialize(tracker, frame_id, target_id, dres, ind, dres_image):
     tracker.y1 = bb[1, :].reshape(-1, 1)
     tracker.x2 = bb[2, :].reshape(-1, 1)
     tracker.y2 = bb[3, :].reshape(-1, 1)
-    tracker.anchor = 0  # doubt
+    # todo doubt in anchor
+    tracker.anchor = 0
 
     # initialze the image for LK association
     tracker.Is = [None] * num
     tracker.BBs = [None] * num
     for i in range(num):
+        # todo doubt in next two lines
         I = dres_image['Igray'][tracker.frame_ids[i] - 1]  # doubt
-        BB = [tracker.x1[i], tracker.y1[i], tracker.x2[i], tracker.y2[i]]
+        BB = np.array([tracker.x1[i], tracker.y1[i], tracker.x2[i], tracker.y2[i]]).reshape(-1, 1)
 
         # crop images and boxes
         I_crop, BB_crop, _, _ = lk_crop_image_box(I, BB, tracker)
