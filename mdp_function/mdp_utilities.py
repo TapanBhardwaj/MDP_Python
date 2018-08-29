@@ -1,6 +1,4 @@
 from tracker.tracker import *
-from lk.lk_utilities import *
-from tld.tld_utilities import *
 
 
 def mdp_crop_image_box(dres, I, tracker):
@@ -33,6 +31,12 @@ def mdp_crop_image_box(dres, I, tracker):
 
 
 def mdp_feature_active(tracker, dres):
+    """
+
+    :param tracker:
+    :param dres:
+    :return:
+    """
     num = len(dres['fr'])
     f = np.zeros(shape=(num, tracker.fnum_active))
     f[:, 0] = dres['x'] / tracker.image_width
@@ -95,6 +99,14 @@ def mdp_feature_occluded(frame_id, dres_image, dres, tracker):
 
 
 def mdp_feature_tracked(frame_id, dres_image, dres_det, tracker):
+    """
+
+    :param frame_id:
+    :param dres_image:
+    :param dres_det:
+    :param tracker:
+    :return:
+    """
     # lk_tracked
     tracker = lk_tracking(frame_id, dres_image, dres_det, tracker)
 
@@ -109,13 +121,29 @@ def mdp_feature_tracked(frame_id, dres_image, dres_det, tracker):
 
 
 def mdp_initialize(I, dres_det, labels, args, logger):
+    """
+
+    :param I:
+    :param dres_det:
+    :param labels:
+    :param args:
+    :param logger:
+    :return:
+    """
     tracker = Tracker(I, dres_det, labels, args, logger)
     return tracker
 
 
 def mdp_initialize_test(tracker, image_width, image_height, dres_det, logger):
     """
-        Initialization for testing
+    Initialization for testing
+
+    :param tracker:
+    :param image_width:
+    :param image_height:
+    :param dres_det:
+    :param logger:
+    :return:
     """
 
     # normalization factor for features
@@ -131,6 +159,3 @@ def mdp_initialize_test(tracker, image_width, image_height, dres_det, logger):
     #     logger.info('Using LSTM model')
 
     return tracker
-
-
-
