@@ -1,14 +1,21 @@
-from tld.tld_utilities import *
-import numpy as np
-from svmutil import *
-from scipy.misc import imresize
-import cv2
 import array
+
+import cv2
+from scipy.misc import imresize
+
+from common.common_utilities import *
 from resample import imResample
+from svmutil import *
+from tld.tld_utilities import *
 
 
 def median2(x):
-    # Median without nan
+    """
+    Median without nan
+
+    :param x:
+    :return:
+    """
 
     y = x[np.isfinite(x)]
     m = np.median(y)
@@ -84,14 +91,15 @@ def sub(s, I):
 
 
 def im_crop(img, bb):
-    '''
+    """
     ****************************************************
     directly taken from nidhin's code
     ****************************************************
     :param img:
     :param bb:
     :return:
-    '''
+
+    """
     w = int(bb_width(bb))
     h = int(bb_height(bb))
     I = np.zeros(shape=(h, w), dtype=np.uint8)
@@ -120,7 +128,11 @@ def im_crop(img, bb):
 
 def apply_motion_prediction(fr_current, tracker):
     """
-        apply motion models to predict the next locations of the targets
+    apply motion models to predict the next locations of the targets
+
+    :param fr_current:
+    :param tracker:
+    :return:
     """
 
     # apply motion model and predict next location
@@ -142,7 +154,7 @@ def apply_motion_prediction(fr_current, tracker):
 
     fr_current = float(fr_current)
 
-    # compute veloxity
+    # compute velocity
     vx = 0
     vy = 0
     num = len(cx)
@@ -168,11 +180,11 @@ def apply_motion_prediction(fr_current, tracker):
 
 
 def compute_velocity(tracker):
-    '''
+    """
     Calculate the velocity from last 3-frames if exists
     :param tracker:
     :return: array which contain 2 elements
-    '''
+    """
     fr = np.unique(tracker.frame_ids).astype(np.dtype('d'))
     num = len(fr)
 
