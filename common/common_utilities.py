@@ -47,6 +47,7 @@ def calc_overlap(dres1, f1, dres2, f2):
     ov = np.zeros((1, n))
     ov_n1 = np.zeros((1, n))
     ov_n2 = np.zeros((1, n))
+    # todo check this
     if inds.shape[0] != 0:
         inter = w[inds] * h[inds]  # area of overlap
         u = ca + ga[inds] - w[inds] * h[inds]  # area of union
