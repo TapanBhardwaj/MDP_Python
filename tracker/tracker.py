@@ -59,13 +59,7 @@ def dataframetonumpy(df):
     return numpy_data
 
 
-def read_mot2dres(filename):
-    data = pd.read_csv(filename, names=['fr', 'id', 'x', 'y', 'w', 'h', 'r', 'd1', 'd2', 'd3'])
-    data.drop(columns=['d1', 'd2', 'd3'], inplace=True)
-    data = dataframetonumpy(data)
-    for key in ['x', 'y', 'w', 'h', 'r']:
-        data[key] = data[key].astype(np.dtype('d'))
-    return data
+
 
 
 def generate_association_index(tracker, frame_id, dres_det):
