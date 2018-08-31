@@ -1,6 +1,19 @@
 from tracker.tracker import *
 
 
+def read_mot2dres(filename):
+    '''
+    Reading det and gt file
+    :param filename:
+    :return:
+    '''
+    data = pd.read_csv(filename, names=['fr', 'id', 'x', 'y', 'w', 'h', 'r', 'd1', 'd2', 'd3'])
+    data.drop(columns=['d1', 'd2', 'd3'], inplace=True)
+    data = dataframetonumpy(data)
+    for key in ['x', 'y', 'w', 'h', 'r']:
+        data[key] = data[key].astype(np.dtype('d'))
+    return data
+
 def mdp_crop_image_box(dres, I, tracker):
     """
         add cropped image and box to dres
@@ -28,6 +41,113 @@ def mdp_crop_image_box(dres, I, tracker):
         dres[key] = np.array(dres[key])
 
     return dres
+
+
+def generate_training_data(seq_name, dres_image, args, logger):
+    '''
+    Generate the training data for mdp_train.
+    :param seq_name: basically folder name
+    :param dres_image:
+    :param args:
+    :param logger:
+    :return:
+    '''
+
+
+    seq_set = 'train'
+
+    # read detections
+    filename = os.path.join(args.data_dir, seq_set, seq_name, 'det', 'det.txt')
+    dres_det = read_mot2dres(filename)
+
+    # read ground truth
+    filename = os.path.join(args.data_dir, seq_set, seq_name, 'gt', 'gt.txt')
+    dres_gt = read_mot2dres(filename)
+    y_gt = dres_gt['y'] + dres_gt['h']
+    # print(y_gt)
+
+    # collect true positives and false alarms from detections
+    num = len(dres_det['fr'])
+    labels = np.zeros(shape=(num, 1), dtype='int64')
+    overlaps = np.zeros(shape=(num, 1))
+    # print(labels)
+
+    for i in range(num):
+        fr = dres_det['fr'][i]
+        # todo remove [0] from last
+        index = np.where(dres_gt['fr'] == fr)
+        # print(index)
+        if index.shape[0] != 0:
+            overlap, _, _ = calc_overlap(dres_det, i, dres_gt, index)
+            o = max(overlap)
+            if o < args.overlap_neg:
+                labels[i] = -1
+            elif o > args.overlap_pos:
+                labels[i] = 1
+            else:
+                labels[i] = 0
+            overlaps[i] = o
+        else:
+            overlaps[i] = 0
+            # todo change form 0 to -1
+            labels[i] = -1
+
+    # build the training sequences
+    ids = np.unique(dres_gt['id'])
+    dres_train = []
+    count = 0
+    for i in range(ids.shape[0]):
+        # todo remove [0] from last
+        index = np.where(dres_gt['id'] == ids[i])
+        dres = sub(dres_gt, index)
+
+        # check if the target is occluded or not
+        num = len(dres['fr'])
+        dres['occluded'] = np.zeros(shape=(num, 1))
+        dres['covered'] = np.zeros(shape=(num, 1))
+        dres['overlap'] = np.zeros(shape=(num, 1))
+        dres['r'] = np.zeros(shape=(num, 1))
+        dres['area_inside'] = np.zeros(shape=(num, 1))
+        y = dres['y'] + dres['h']
+
+        for j in range(num):
+            fr = dres['fr'][j]
+            # todo remove [0] from last
+            index = np.where(np.logical_and(dres_gt['fr'] == fr, dres_gt['id'] != ids[i]))
+
+            if len(index) != 0:
+                _, ov, _ = calc_overlap(dres, j, dres_gt, index)
+                ov[y[j] > y_gt[index]] = 0
+                dres['covered'][j] = max(ov)
+
+            if dres['covered'][j] > args.overlap_occ:
+                dres['occluded'][j] = 1
+
+            # overlap with detections
+            #todo reomve [0] from last
+            index = np.where(dres_det['fr'] == fr)
+            if len(index) != 0:
+                overlap, _, _ = calc_overlap(dres, j, dres_det, index)
+                ind = np.argmax(overlap)
+                o = overlap[ind]
+                dres['overlap'][j] = o
+                dres['r'][j] = dres_det['r'][index[ind]]
+
+                # area inside image
+                # todo change in last parameter in function call below
+                _, overlap, _ = calc_overlap(dres_det, index[ind], dres_image,fr)
+                dres['area_inside'][j] = overlap
+
+        # start with bounding overlap > args.overlap_pos and non-occluded box
+        # todo remove [0] from the end
+        index = np.where(np.logical_and(dres['overlap'] > args.overlap_pos, np.logical_and(dres['covered'] == 0, dres[
+            'area_inside'] > args.exit_threshold)))
+        if len(index) != 0:
+            index_start = index[0]
+            # todo change in the last parameter
+            dres_train.append(sub(dres, np.array(range(index_start, num+1))))
+
+    return (dres_train, dres_det, labels)
 
 
 def mdp_feature_active(tracker, dres):
